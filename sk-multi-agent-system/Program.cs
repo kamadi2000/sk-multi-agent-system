@@ -8,7 +8,16 @@ class Program
     {
         Console.WriteLine("--- Multi-Agent System Initializing ---");
 
-        // --- 1. Instantiate and use the CodeIntelAgent ---
+        // --- 1. Instantiate and use the TriageAgent ---
+        var triageAgent = new TriageAgent();
+
+        Console.WriteLine($"\n🤖 Executing task on: {triageAgent.Name}...");
+
+        var cts = new CancellationTokenSource();
+
+        await triageAgent.ExecuteAsync(cts.Token);
+
+        // --- 2. Instantiate and use the CodeIntelAgent ---
         var codeIntelAgent = new CodeIntelAgent();
 
         Console.WriteLine($"\n🤖 Executing task on: {codeIntelAgent.Name}...");
@@ -33,7 +42,7 @@ class Program
         }
 
 
-        // --- 2. Instantiate and use the JiraAgent ---
+        // --- 3. Instantiate and use the JiraAgent ---
         var jiraAgent = new JiraAgent();
 
         Console.WriteLine($"\n🤖 Executing task on: {jiraAgent.Name}...");
