@@ -1,23 +1,62 @@
-﻿using Microsoft.SemanticKernel;
-using Microsoft.SemanticKernel.ChatCompletion;
+﻿using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 
-string API_KEY = "";
-string MODEL_ID = "gpt-4.1";
+class Program
+{
+    static async Task Main(string[] args)
+    {
+        Console.WriteLine("--- Multi-Agent System Initializing ---");
 
-// Create a Kernel
-var builder = Kernel.CreateBuilder();
-builder.AddOpenAIChatCompletion(MODEL_ID, API_KEY);
-var kernel = builder.Build();
+        // --- 1. Instantiate and use the CodeIntelAgent ---
+        var codeIntelAgent = new CodeIntelAgent();
 
-// Get the chat service
-var chatService = kernel.GetRequiredService<IChatCompletionService>();
+        Console.WriteLine($"\n🤖 Executing task on: {codeIntelAgent.Name}...");
 
-// Create a chat history
-ChatHistory chatMessages = new ChatHistory();
-chatMessages.AddUserMessage("What's the capital of France?");
+        try
+        {
+            // Define the task and arguments for the agent
+            var historyArgs = new Dictionary<string, object>
+            {
+                { "partialFileName", "code.ts" } // Change to a file in your repo
+            };
 
-// Send the chat to the LLM and get a response
-var reply = await chatService.GetChatMessageContentAsync(chatMessages);
+            string gitHistory = await codeIntelAgent.ExecuteAsync("FindFileHistory", historyArgs);
 
-// Print the result
-Console.WriteLine($"Assistant: {reply.Content}");
+            Console.WriteLine("--- Result ---");
+            Console.WriteLine(gitHistory);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"\n--- An error occurred ---");
+            Console.WriteLine(ex.Message);
+        }
+
+
+        // --- 2. Instantiate and use the JiraAgent ---
+        var jiraAgent = new JiraAgent();
+
+        Console.WriteLine($"\n🤖 Executing task on: {jiraAgent.Name}...");
+
+        try
+        {
+            // Define the task and arguments for the agent
+            var ticketArgs = new Dictionary<string, object>
+            {
+                { "projectKey", "PROJ" }, // <-- IMPORTANT: Change to your project's key
+                { "summary", "Test Bug: Button is not working" },
+                { "description", "A bug was reported by the AI agent system." }
+            };
+
+            string ticketResult = await jiraAgent.ExecuteAsync("CreateTicket", ticketArgs);
+
+            Console.WriteLine("--- Result ---");
+            Console.WriteLine(ticketResult);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"\n--- An error occurred ---");
+            Console.WriteLine(ex.Message);
+        }
+    }
+}
