@@ -9,7 +9,25 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Bots\**" />
+    <EmbeddedResource Remove="Bots\**" />
+    <None Remove="Bots\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.7">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.Extensions.Configuration" Version="9.0.7" />
+    <PackageReference Include="Microsoft.Extensions.VectorData.Abstractions" Version="9.7.0" />
     <PackageReference Include="Microsoft.SemanticKernel" Version="1.61.0" />
+    <PackageReference Include="Microsoft.SemanticKernel.Agents.Core" Version="1.61.0" />
+    <PackageReference Include="Microsoft.SemanticKernel.Connectors.OpenAI" Version="1.61.0" />
+    <PackageReference Include="Microsoft.SemanticKernel.Connectors.Qdrant" Version="1.61.0-preview" />
+    <PackageReference Include="Qdrant.Client" Version="1.15.0" />
+    <PackageReference Include="Telegram" Version="1.0.1" />
+    <PackageReference Include="Telegram.Bot" Version="22.6.0" />
   </ItemGroup>
 
 </Project>
