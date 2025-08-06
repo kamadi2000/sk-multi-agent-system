@@ -12,16 +12,20 @@ using Telegram.Bot.Types.Enums;
 public class TriageAgent : IAgent
 {
     public string Name => "TriageAgent";
-    private string API_KEY = "API_KEY";
+    private string API_KEY = "";
     private string MODEL_ID = "gpt-4.1";
-    private string TELEGRAM_BOT_API_KEY = "TELEGRAM_APIKEY";
+    private string TELEGRAM_BOT_API_KEY = "";
     private Kernel kernel;
     private TelegramBotClient telegramBot;
     private ChatCompletionAgent chatCompletionAgent;
     private readonly Dictionary<long, ChatHistoryAgentThread> userThreads = new();
+    private readonly CodeIntelAgent _codeIntelAgent;
+    private readonly JiraAgent _jiraAgent;
 
-    public TriageAgent()
+    public TriageAgent(CodeIntelAgent codeIntelAgent, JiraAgent jiraAgent)
     {
+        _codeIntelAgent = codeIntelAgent;
+        _jiraAgent = jiraAgent;
         var builder = Kernel.CreateBuilder();
         builder.AddOpenAIChatCompletion(MODEL_ID, API_KEY);
         kernel = builder.Build();
@@ -64,6 +68,7 @@ public class TriageAgent : IAgent
 
     private async Task HandleUpdateAsync(ITelegramBotClient botClient, Update update, CancellationToken cancellationToken)
     {
+        // TODO: Update LLM to undestand context and execute
         if (update.Type != UpdateType.Message)
             return;
         if (update.Message!.Type != MessageType.Text)
@@ -75,18 +80,41 @@ public class TriageAgent : IAgent
 
         Console.WriteLine($"User {userId} sent: {userInput}");
 
+        await botClient.SendMessage(
+            chatId: chatId,
+            text: "Understood. Analyzing the file...",
+            cancellationToken: cancellationToken);
+
+        var historyArgs = new Dictionary<string, object> { { "partialFileName", userInput } };
+        string gitHistoryResult = await _codeIntelAgent.ExecuteAsync("FindFileHistory", historyArgs);
+
         if (!userThreads.TryGetValue(userId, out var thread))
         {
             thread = new ChatHistoryAgentThread();
             userThreads[userId] = thread;
         }
 
-        var result = await HandleThreads(update.Message?.Text, new Dictionary<string, object>
-        {
-            { "now", DateTime.Now.ToString() }
-        }, thread);
+        string finalPrompt = $"""
+        A user is asking for help with a bug. Your task is to analyze the following technical data and present it clearly to them.
 
-        await botClient.SendMessage(chatId: chatId, text: result);
+        **Technical Data from CodeIntelAgent:**
+        ---
+        {gitHistoryResult}
+        ---
+
+        **Your Instructions:**
+        1. Summarize the findings in a user-friendly way.
+        2. If the data shows an error (e.g., "File not found"), tell the user you couldn't find the file.
+        3. Do not invent any information. Only use the data provided.
+        """;
+
+        var result = await HandleThreads(finalPrompt, new Dictionary<string, object>(), thread);
+
+        await botClient.SendMessage(
+            chatId: chatId,
+            text: result,
+            cancellationToken: cancellationToken);
+
     }
 
     private Task HandleErrorAsync(ITelegramBotClient botClient, Exception exception, CancellationToken cancellationToken)
