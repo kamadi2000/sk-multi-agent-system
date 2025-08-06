@@ -15,6 +15,7 @@ public class TriageAgent : IAgent
     private string API_KEY = "";
     private string MODEL_ID = "gpt-4.1";
     private string TELEGRAM_BOT_API_KEY = "";
+    private string JIRA_PROJECT_KEY = "";
     private Kernel kernel;
     private TelegramBotClient telegramBot;
     private ChatCompletionAgent chatCompletionAgent;
@@ -87,6 +88,16 @@ public class TriageAgent : IAgent
 
         var historyArgs = new Dictionary<string, object> { { "partialFileName", userInput } };
         string gitHistoryResult = await _codeIntelAgent.ExecuteAsync("FindFileHistory", historyArgs);
+
+        // Create Jira ticket after obtaining git result.
+        var ticketArgs = new Dictionary<string, object>
+            {
+                { "projectKey", JIRA_PROJECT_KEY },
+                { "summary", "Test Bug 2: New Button is not working" },
+                { "description", "A bug was reported by the AI agent system." }
+            };
+
+        string ticketResult = await _jiraAgent.ExecuteAsync("CreateTicket", ticketArgs);
 
         if (!userThreads.TryGetValue(userId, out var thread))
         {
