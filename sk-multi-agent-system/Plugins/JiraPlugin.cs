@@ -1,22 +1,23 @@
 using Atlassian.Jira;
 using Microsoft.SemanticKernel;
+using System;
 using System.ComponentModel;
 using System.Threading.Tasks;
 
+// It's best practice to put your plugins in a dedicated namespace.
+namespace sk_multi_agent_system.Plugins;
+
 public class JiraPlugin
 {
-    // --- Jira Connection Details ---
-    // IMPORTANT: Replace with your Jira instance details
-    private readonly string _jiraUrl = "https://your-domain.atlassian.net";
-    private readonly string _jiraUsername = "your-email@example.com";
-    private readonly string _jiraApiToken = "YourJiraApiToken";
-
     private readonly Jira _jira;
 
-    public JiraPlugin()
+    /// <param name="jiraUrl">Your Jira instance URL.</param>
+    /// <param name="jiraUsername">Your Jira username (email).</param>
+    /// <param name="jiraApiToken">Your Jira API token.</param>
+    public JiraPlugin(string jiraUrl, string jiraUsername, string jiraApiToken)
     {
-        // Creates a connection to your Jira instance
-        _jira = Jira.CreateRestClient(_jiraUrl, _jiraUsername, _jiraApiToken);
+
+        _jira = Jira.CreateRestClient(jiraUrl, jiraUsername, jiraApiToken);
     }
 
     [KernelFunction, Description("Creates a new issue or task in a Jira project.")]
@@ -29,23 +30,42 @@ public class JiraPlugin
     {
         try
         {
-            // Create a new issue object
             var newIssue = _jira.CreateIssue(projectKey);
             newIssue.Type = issueType;
             newIssue.Summary = summary;
             newIssue.Description = description;
 
-            // Save the issue to Jira
             await newIssue.SaveChangesAsync();
 
-            // Return the key of the newly created issue
             return $"Successfully created Jira ticket: {newIssue.Key}";
         }
         catch (Exception ex)
         {
-            // Log the full exception for debugging if needed
-            Console.WriteLine(ex);
-            return $"Error: Failed to create Jira ticket. Check credentials and project key. Details: {ex.Message}";
+            return $"Error: Failed to create Jira ticket. Details: {ex.Message}";
+        }
+    }
+
+    [KernelFunction, Description("Assigns an existing Jira issue to a specific user.")]
+    public async Task<string> AssignJiraTicket(
+        [Description("The key of the issue to assign, e.g., 'PROJ-123'.")] string issueKey,
+        [Description("The username or account ID of the person to assign the issue to.")] string assigneeName
+    )
+    {
+        try
+        {
+            var issue = await _jira.Issues.GetIssueAsync(issueKey);
+            if (issue == null)
+            {
+                return $"Error: Issue with key '{issueKey}' not found.";
+            }
+
+            await issue.AssignAsync(assigneeName);
+
+            return $"Successfully assigned issue {issueKey} to {assigneeName}.";
+        }
+        catch (Exception ex)
+        {
+            return $"Error: Failed to assign issue {issueKey}. Details: {ex.Message}";
         }
     }
 }

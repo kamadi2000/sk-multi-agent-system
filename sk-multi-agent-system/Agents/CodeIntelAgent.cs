@@ -1,46 +1,35 @@
 using Microsoft.SemanticKernel;
-using System.Collections.Generic;
-using System.Threading.Tasks;
+using Microsoft.SemanticKernel.Agents;
+using sk_multi_agent_system.Plugins;
 
-public class CodeIntelAgent : IAgent
+namespace sk_multi_agent_system.Agents;
+public class CodeIntelAgent(Kernel kernel)
 {
-    public string Name => "CodeIntelAgent";
-    private readonly Kernel _kernel;
+    public const string AgentName = "CodeIntelAgent";
+    public const string AgentInstructions =
+        """
+        You are an expert in code repository analysis.
+        Your job is to use the available tools to answer questions about files, commits, and git history.
+        Be precise and provide only the information requested.
+        """;
 
-    public CodeIntelAgent()
+    /// Creates a new ChatCompletionAgent specialized for code intelligence tasks.
+    /// A new ChatCompletionAgent instance.
+    public ChatCompletionAgent Create()
     {
-        var builder = Kernel.CreateBuilder();
-        builder.Plugins.AddFromType<GitPlugin>();
-        _kernel = builder.Build();
-    }
-
-    // Main execution method that routes to the correct task
-    public async Task<string> ExecuteAsync(string task, Dictionary<string, object> arguments)
-    {
-        return task switch
+        // This agent is configured to automatically use any function within GitPlugin.
+        // It will intelligently choose between FindFileAndGetHistory and ListAllTrackedFiles
+        // based on the user's prompt.
+        return new ChatCompletionAgent
         {
-            "FindFileHistory" => await FindFileAndGetHistoryAsync(arguments["partialFileName"].ToString()),
-            "ListAllFiles" => await ListAllTrackedFilesAsync(),
-            _ => throw new System.NotImplementedException($"Task '{task}' is not supported by {Name}.")
+            Name = AgentName,
+            Instructions = AgentInstructions,
+            Kernel = kernel,
+            Arguments = new KernelArguments(new PromptExecutionSettings()
+            {
+                // We use 'Auto' so the agent can pick the best tool from the plugin.
+                FunctionChoiceBehavior = FunctionChoiceBehavior.Auto()
+            })
         };
-    }
-
-    // --- Private methods for each skill ---
-
-    private async Task<string> FindFileAndGetHistoryAsync(string partialFileName)
-    {
-        var result = await _kernel.InvokeAsync(
-            "GitPlugin",
-            "FindFileAndGetHistory",
-            new() { ["partialFileName"] = partialFileName }
-        );
-        return result.GetValue<string>();
-    }
-
-    private async Task<string> ListAllTrackedFilesAsync()
-    {
-        // This would call another function in your GitPlugin that lists all files.
-        // For now, we'll just return a placeholder.
-        return await Task.FromResult("Listing all tracked files... (implementation pending)");
     }
 }

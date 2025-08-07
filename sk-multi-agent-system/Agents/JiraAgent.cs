@@ -1,42 +1,34 @@
 using Microsoft.SemanticKernel;
-using System.Collections.Generic;
-using System.Threading.Tasks;
+using Microsoft.SemanticKernel.Agents;
+using sk_multi_agent_system.Plugins;
 
-public class JiraAgent : IAgent
+namespace sk_multi_agent_system.Agents;
+
+
+/// A factory for creating a specialized agent that interacts with Jira.
+/// This agent uses the functions available in the JiraPlugin.
+public class JiraAgent(Kernel kernel)
 {
-	public string Name => "JiraAgent";
-	private readonly Kernel _kernel;
+    public const string AgentName = "JiraAgent";
+    public const string AgentInstructions =
+        """
+        You are a project management assistant specializing in Jira.
+        Your primary function is to create and manage Jira tickets based on user requests.
+        You must collect all necessary information (project, summary, description) before using a tool.
+        """;
 
-	public JiraAgent()
-	{
-		var builder = Kernel.CreateBuilder();
-		builder.Plugins.AddFromType<JiraPlugin>();
-		_kernel = builder.Build();
-	}
-
-	public async Task<string> ExecuteAsync(string task, Dictionary<string, object> arguments)
-	{
-		return task switch
-		{
-			"CreateTicket" => await CreateTicketAsync(arguments),
-			_ => throw new System.NotImplementedException($"Task '{task}' is not supported by {Name}.")
-		};
-	}
-
-	// --- Private method for the specific skill ---
-
-	private async Task<string> CreateTicketAsync(Dictionary<string, object> arguments)
-	{
-		var kernelArgs = new KernelArguments
-		{
-			["projectKey"] = arguments["projectKey"],
-			["summary"] = arguments["summary"],
-			["description"] = arguments["description"],
-			["issueType"] = "Bug"
-		};
-
-		var result = await _kernel.InvokeAsync("JiraPlugin", "CreateJiraTicket", kernelArgs);
-
-		return result.GetValue<string>();
-	}
+    public ChatCompletionAgent Create()
+    {
+        return new ChatCompletionAgent
+        {
+            Name = AgentName,
+            Instructions = AgentInstructions,
+            Kernel = kernel,
+            Arguments = new KernelArguments(new PromptExecutionSettings()
+            {
+                // Let the agent automatically choose the best function from JiraPlugin.
+                FunctionChoiceBehavior = FunctionChoiceBehavior.Auto()
+            })
+        };
+    }
 }
