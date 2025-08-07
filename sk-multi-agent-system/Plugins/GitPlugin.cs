@@ -21,7 +21,7 @@ public class GitPlugin
         {
             using var repo = new Repository(_repoPath);
 
-            // First, find the full path of the file from a partial name
+            // find the full path of the file from a partial name
             string? foundFilePath = repo.Index
                 .Select(entry => entry.Path)
                 .FirstOrDefault(path => path.Contains(fileName, StringComparison.OrdinalIgnoreCase));
@@ -31,7 +31,7 @@ public class GitPlugin
                 return $"Error: No file found containing the name '{fileName}'.";
             }
 
-            // Now, get the commit history for the full file path
+            // get the commit history for the full file path
             var commits = repo.Commits.QueryBy(foundFilePath, new CommitFilter { SortBy = CommitSortStrategies.Time }).ToList();
             if (!commits.Any())
             {

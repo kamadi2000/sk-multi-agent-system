@@ -4,7 +4,6 @@ using System;
 using System.ComponentModel;
 using System.Threading.Tasks;
 
-// It's best practice to put your plugins in a dedicated namespace.
 namespace sk_multi_agent_system.Plugins;
 
 public class JiraPlugin

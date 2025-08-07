@@ -27,7 +27,7 @@ public class CodeIntelAgent(Kernel kernel)
             Kernel = kernel,
             Arguments = new KernelArguments(new PromptExecutionSettings()
             {
-                // We use 'Auto' so the agent can pick the best tool from the plugin.
+                // use 'Auto' so the agent can pick the best tool from the plugin.
                 FunctionChoiceBehavior = FunctionChoiceBehavior.Auto()
             })
         };

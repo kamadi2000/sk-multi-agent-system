@@ -7,7 +7,7 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace sk_multi_agent_system.Agents;
 
-// This class is now the "manager" of specialist agents.
+// This class is the "manager" of specialist agents.
 public class TriageAgent(Kernel kernel)
 {
     private const string CodeIntelName = CodeIntelAgent.AgentName;
