@@ -35,19 +35,23 @@ public class TriageSystem
         builder.Plugins.AddFromObject(jiraPlugin);
         var kernel = builder.Build();
 
-        // Create specialist agent factories
+        // create specialist agent factories
         var codeIntelFactory = new CodeIntelAgent(kernel);
         var jiraFactory = new JiraAgent(kernel);
+
+        // create the agents
+        var codeIntelAgent = codeIntelFactory.Create();
+        var jiraAgent = jiraFactory.Create();
 
         // Create the orchestrator
         var orchestrator = new TriageAgent(kernel);
 
-        // 4. Create the chat group
-        _chat = new AgentGroupChat(
-            codeIntelFactory.Create(),
-            jiraFactory.Create()
-            // TODO: Add new agents
-        );
+        // Create the chat group
+        _chat = new AgentGroupChat(codeIntelAgent, jiraAgent)
+        {
+            // Set the rules for the chat group using the orchestrator's plan
+            ExecutionSettings = orchestrator.CreateExecutionSettings([jiraAgent])
+        };
     }
 
     public async IAsyncEnumerable<string> RunAsync(string userMessage)
