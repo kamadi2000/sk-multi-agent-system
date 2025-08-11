@@ -16,32 +16,13 @@ internal class Program
 
         Console.WriteLine("--- Multi-Agent Triage System Initializing ---");
 
-        var triageSystem = new TriageSystem(configuration);
+        var botService = new TelegramBotService(configuration);
 
-        Console.WriteLine("System Initialized. You can now chat with the TriageAgent.");
-        Console.WriteLine("Type 'exit' to quit.");
+        Console.WriteLine("Telegram bot is running.");
+        Console.WriteLine("Press Enter to quit.");
         Console.WriteLine("----------------------------------------------------");
 
-        while (true)
-        {
-            Console.Write("User > ");
-            string userInput = Console.ReadLine() ?? "";
+        botService.Start();
 
-            if (string.IsNullOrWhiteSpace(userInput) || userInput.Equals("exit", StringComparison.OrdinalIgnoreCase))
-            {
-                break;
-            }
-
-            await foreach (var message in triageSystem.RunAsync(userInput))
-            {
-                var originalColor = Console.ForegroundColor;
-                Console.ForegroundColor = ConsoleColor.Cyan;
-                Console.WriteLine(message);
-                Console.ForegroundColor = originalColor;
-            }
-            Console.WriteLine();
-        }
-
-        Console.WriteLine("--- Session Ended ---");
     }
 }
