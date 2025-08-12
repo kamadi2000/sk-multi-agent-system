@@ -3,6 +3,7 @@
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.Agents;
 using Microsoft.SemanticKernel.Agents.Chat;
+using Microsoft.SemanticKernel.ChatCompletion;
 using System.Diagnostics.CodeAnalysis;
 
 namespace sk_multi_agent_system.Agents;
@@ -51,10 +52,12 @@ public class TriageAgent(Kernel kernel)
             Based on the LAST message in the history and the rules, who speaks next? Return only one name.
             """;
 
+        var chatCompletionService = kernel.GetRequiredService<IChatCompletionService>();
         return new KernelFunctionSelectionStrategy(
             KernelFunctionFactory.CreateFromPrompt(selectionPrompt), kernel)
         {
-            HistoryVariableName = "history"
+            HistoryVariableName = "history",
+            HistoryReducer = new ChatHistorySummarizationReducer(chatCompletionService, 5) // function that summerize the hsitroy and keep last 5 as raw
 
         };
     }
@@ -79,7 +82,8 @@ public class TriageAgent(Kernel kernel)
         {
             Agents = agents,
             ResultParser = result => result.GetValue<string>()?.Contains("yes", StringComparison.OrdinalIgnoreCase) ?? false,
-            HistoryVariableName = "history"
+            HistoryVariableName = "history",
+            MaximumIterations = 1,
         };
     }
 }
