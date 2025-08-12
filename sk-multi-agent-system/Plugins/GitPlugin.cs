@@ -9,8 +9,12 @@ namespace sk_multi_agent_system.Plugins;
 
 public class GitPlugin
 {
-    // TODO: update instead of hardcoded.
-    private readonly string _repoPath = "C:\\Work\\sk-multi-agent-system";
+    private readonly string _repoPath ;
+
+    public GitPlugin(string repoPath)
+    {
+        _repoPath = repoPath;
+    }
 
     [KernelFunction, Description("Finds a file by its partial or full name and gets its first and last commit history.")]
     public string GetFileCommitHistory(

@@ -17,8 +17,7 @@ public class TelegramBotService
 
         _botClient = new TelegramBotClient(botToken);
 
-        // Pass the same configuration to your TriageSystem
-        _triageSystem = new TriageSystem(configuration);
+        _triageSystem = new TriageSystem(configuration, _botClient);
     }
 
     public void Start()
@@ -50,7 +49,6 @@ public class TelegramBotService
         var chatId = update.Message.Chat.Id;
         var userMessage = update.Message.Text ?? "";
 
-        // Pass to TriageSystem and send each response
         await foreach (var reply in _triageSystem.RunAsync(userMessage))
         {
             await bot.SendMessage(chatId, reply, cancellationToken: cancellationToken);

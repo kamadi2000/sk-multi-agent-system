@@ -12,6 +12,7 @@ public class TriageAgent(Kernel kernel)
 {
     private const string CodeIntelName = CodeIntelAgent.AgentName;
     private const string JiraAgentName = JiraAgent.AgentName;
+    private const string CommAgentName = CommunicationAgent.AgentName;
 
     public AgentGroupChatSettings CreateExecutionSettings()
     {
@@ -33,14 +34,16 @@ public class TriageAgent(Kernel kernel)
             Choose only from these participants:
             - {{{CodeIntelName}}}
             - {{{JiraAgentName}}}
+            - {{{CommAgentName}}}
             - User
 
             Always follow these rules:
             1. If the user asks a question about code, files, or commit history, it is {{{CodeIntelName}}}'s turn.
             2. If the user asks to create a bug report or ticket, it is {{{JiraAgentName}}}'s turn.
             3. If the {{{CodeIntelName}}} has provided information, the next turn is usually the User's to ask a follow-up question or the {{{JiraAgentName}}}'s if a bug needs to be filed.
-            4. If the {{{JiraAgentName}}} has created a ticket, the conversation may be complete.
-            5. Otherwise, it is the User's turn.
+            4. If the user requests to send a message to the people mentioned in the message given by {{{CodeIntelName}}}, then it's {{{CommAgentName}}} turn.
+            5. If the {{{JiraAgentName}}} has created a ticket, the conversation may be complete.
+            6. Otherwise, it is the User's turn.
 
             History:
             {{$history}}

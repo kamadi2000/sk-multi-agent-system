@@ -9,6 +9,7 @@ using Microsoft.SemanticKernel.ChatCompletion;
 using sk_multi_agent_system.Agents;
 using sk_multi_agent_system.Plugins;
 using System.Diagnostics.CodeAnalysis;
+using Telegram.Bot;
 
 namespace sk_multi_agent_system;
 
@@ -16,7 +17,7 @@ public class TriageSystem
 {
     private readonly AgentGroupChat _chat;
 
-    public TriageSystem(IConfiguration configuration)
+    public TriageSystem(IConfiguration configuration, ITelegramBotClient botClient)
     {
         // Create a single, shared Kernel
         var builder = Kernel.CreateBuilder().AddOpenAIChatCompletion(
@@ -24,20 +25,27 @@ public class TriageSystem
             configuration["OpenAI:ApiKey"]!
             );
 
-        var gitPlugin = new GitPlugin();
+        var gitPlugin = new GitPlugin(
+            configuration["Git:RepoPath"]!
+        );
+
         var jiraPlugin = new JiraPlugin(
             configuration["Jira:Url"]!,
             configuration["Jira:Username"]!,
             configuration["Jira:ApiToken"]!
         );
 
+        var commPlugin = new CommPlugin(botClient);
+
         builder.Plugins.AddFromObject(gitPlugin);
         builder.Plugins.AddFromObject(jiraPlugin);
+        builder.Plugins.AddFromObject(commPlugin);
         var kernel = builder.Build();
 
         // Create specialist agent factories
         var codeIntelFactory = new CodeIntelAgent(kernel);
         var jiraFactory = new JiraAgent(kernel);
+        var commFactory = new CommunicationAgent(kernel);
 
         // Create the orchestrator
         var orchestrator = new TriageAgent(kernel);
@@ -45,6 +53,7 @@ public class TriageSystem
         // 4. Create the chat group
         _chat = new AgentGroupChat(
             codeIntelFactory.Create(),
+            commFactory.Create(),
             jiraFactory.Create()
             // TODO: Add new agents
         );
