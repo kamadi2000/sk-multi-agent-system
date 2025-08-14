@@ -1,150 +1,71 @@
-﻿using LibGit2Sharp;
+﻿#pragma warning disable SKEXP0001
+
+using Microsoft.Extensions.AI;
+using Microsoft.Extensions.Configuration;
 using Microsoft.SemanticKernel;
-using System;
+using Microsoft.SemanticKernel.Connectors.MongoDB;
+using MongoDB.Driver;
+using sk_multi_agent_system.Models;
 using System.ComponentModel;
-using System.Linq;
 using System.Text;
 
 namespace sk_multi_agent_system.Plugins;
 
 public class GitPlugin
 {
-    // TODO: update instead of hardcoded.
-    private readonly string _repoPath = "C:\\Work\\sk-multi-agent-system";
+    private readonly IConfiguration _configuration;
+    private readonly Kernel _kernel;
 
-    [KernelFunction, Description("Finds a file by its partial or full name and gets its first and last commit history.")]
-    public string GetFileCommitHistory(
-        [Description("The partial or full name of the file to search for.")] string fileName
+    public GitPlugin(IConfiguration configuration, Kernel kernel)
+    {
+        _configuration = configuration;
+        _kernel = kernel;
+    }
+
+
+    [KernelFunction, Description("Performs a semantic search on commit history, with optional filters for author and date.")]
+    public async Task<string> SemanticSearchCommits(
+        [Description("The user's question or topic to search for.")] string query
     )
     {
         try
         {
-            using var repo = new Repository(_repoPath);
+            // Connect to MongoDB
+            var mongoClient = new MongoClient(_configuration["MongoDB:ConnectionString"]!);
+            var database = mongoClient.GetDatabase(_configuration["MongoDB:DatabaseName"]!);
+            var vectorStore = new MongoVectorStore(database);
+            var collection = vectorStore.GetCollection<string, GitCommitRecord>(
+                _configuration["MongoDB:CollectionName"]!
+            );
 
-            // find the full path of the file from a partial name
-            string? foundFilePath = repo.Index
-                .Select(entry => entry.Path)
-                .FirstOrDefault(path => path.Contains(fileName, StringComparison.OrdinalIgnoreCase));
+            // Generate an embedding for the user's search query
+            var embeddingGenerator = _kernel.GetRequiredService<IEmbeddingGenerator<string, Embedding<float>>>();
+            Embedding<float> searchEmbedding = await embeddingGenerator.GenerateAsync(query);
 
-            if (foundFilePath == null)
+            // perform the search using the vector and options
+            var results = await collection.SearchAsync(searchEmbedding.Vector, top: 5).ToListAsync();
+
+            if (!results.Any())
             {
-                return $"Error: No file found containing the name '{fileName}'.";
+                return "I couldn't find any commits that matched your query.";
             }
 
-            // get the commit history for the full file path
-            var commits = repo.Commits.QueryBy(foundFilePath, new CommitFilter { SortBy = CommitSortStrategies.Time }).ToList();
-            if (!commits.Any())
-            {
-                return $"File '{foundFilePath}' found, but it has no commit history.";
-            }
-
-            var firstCommit = commits.Last().Commit;
-            var lastCommit = commits.First().Commit; 
-
-            // Use StringBuilder for structured output
+            // Format and return the results
             var output = new StringBuilder();
-            output.Append($"File: {foundFilePath}|");
-            output.Append($"FirstCommitAuthor: {firstCommit.Author.Name}|");
-            output.Append($"FirstCommitDate: {firstCommit.Author.When:yyyy-MM-dd}|");
-            output.Append($"FirstCommitMessage: {firstCommit.MessageShort}|");
-            output.Append($"LastCommitAuthor: {lastCommit.Author.Name}|");
-            output.Append($"LastCommitDate: {lastCommit.Author.When:yyyy-MM-dd}|");
-            output.Append($"LastCommitMessage: {lastCommit.MessageShort}");
-
-            return output.ToString();
-        }
-        catch (Exception ex)
-        {
-            return $"An unexpected error occurred: {ex.Message}";
-        }
-    }
-
-    [KernelFunction, Description("Gets a list of the most recent commits for the entire repository.")]
-    public string GetRecentRepositoryCommits(
-        [Description("The number of recent commits to retrieve.")] int limit = 5
-    )
-    {
-        try
-        {
-            using var repo = new Repository(_repoPath);
-            var commits = repo.Commits.Take(limit).ToList();
-
-            if (!commits.Any())
+            output.AppendLine("Here are the most relevant commits I found:");
+            foreach (var result in results)
             {
-                return "No commits found in the repository.";
-            }
+                if (result.Score < 0.5) continue; // Manually filter by relevance score
 
-            // Use StringBuilder to format the list of commits
-            var output = new StringBuilder();
-            output.AppendLine("Recent Commits:");
-            foreach (var commit in commits)
-            {
-                output.Append($"Commit: {commit.Id.ToString(7)}|");
-                output.Append($"Author: {commit.Author.Name}|");
-                output.Append($"Date: {commit.Author.When:yyyy-MM-dd}|");
-                output.Append($"Message: {commit.MessageShort}");
-                output.AppendLine();
+                output.AppendLine($"  - (Relevance: {result.Score:P0}) Commit: {result.Record.CommitSha.Substring(0, 7)} by {result.Record.Author}");
+                output.AppendLine($"    Message: {result.Record.Message.Split('\n').FirstOrDefault()}");
             }
 
             return output.ToString();
         }
         catch (Exception ex)
         {
-            return $"An unexpected error occurred: {ex.Message}";
-        }
-    }
-
-    [KernelFunction, Description("Gets a list of files that were changed (added, modified, deleted) in a specific commit.")]
-    public string GetCommitChanges(
-    [Description("The 7-character commit SHA to inspect (e.g., 'a1b2c3d').")] string commitSha
-)
-    {
-        try
-        {
-            using var repo = new Repository(_repoPath);
-
-            // Find the commit by its SHA
-            var commit = repo.Lookup<Commit>(commitSha);
-            if (commit == null)
-            {
-                return $"Error: Commit with SHA '{commitSha}' not found.";
-            }
-
-            // The first commit has no parents to compare against
-            if (!commit.Parents.Any())
-            {
-                return $"Commit '{commitSha}' is the initial commit. All files were added.";
-            }
-
-            var parentCommit = commit.Parents.First();
-            var changes = repo.Diff.Compare<TreeChanges>(parentCommit.Tree, commit.Tree);
-
-            var output = new StringBuilder();
-            output.AppendLine($"Changes in commit {commit.Id.ToString(7)}:");
-
-            foreach (var entry in changes.Added)
-            {
-                output.AppendLine($"  - Added: {entry.Path}");
-            }
-            foreach (var entry in changes.Modified)
-            {
-                output.AppendLine($"  - Modified: {entry.Path}");
-            }
-            foreach (var entry in changes.Deleted)
-            {
-                output.AppendLine($"  - Deleted: {entry.Path}");
-            }
-
-            if (output.Length == 0)
-            {
-                return $"No file changes detected in commit {commit.Id.ToString(7)} (e.g., merge commit with no changes).";
-            }
-
-            return output.ToString();
-        }
-        catch (Exception ex)
-        {
-            return $"An unexpected error occurred: {ex.Message}";
+            return $"An error occurred during the search: {ex.Message}";
         }
     }
 }

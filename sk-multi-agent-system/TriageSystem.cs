@@ -1,5 +1,6 @@
 #pragma warning disable SKEXP0110
 #pragma warning disable SKEXP0001
+#pragma warning disable SKEXP0010
 
 using Microsoft.Extensions.Configuration;
 using Microsoft.SemanticKernel;
@@ -19,32 +20,38 @@ public class TriageSystem
     public TriageSystem(IConfiguration configuration)
     {
         // Create a single, shared Kernel
-        var builder = Kernel.CreateBuilder().AddOpenAIChatCompletion(
+        var baseKernelBuilder = Kernel.CreateBuilder();
+        baseKernelBuilder.AddOpenAIChatCompletion(
             configuration["OpenAI:ModelId"]!,
             configuration["OpenAI:ApiKey"]!
             );
 
-        var gitPlugin = new GitPlugin();
+        baseKernelBuilder.AddOpenAIEmbeddingGenerator(
+            configuration["OpenAI:EmbeddingModel"]!,
+            configuration["OpenAI:ApiKey"]!
+        );
+        var baseKernel = baseKernelBuilder.Build();
+        var gitPlugin = new GitPlugin(configuration, baseKernel);
         var jiraPlugin = new JiraPlugin(
             configuration["Jira:Url"]!,
             configuration["Jira:Username"]!,
             configuration["Jira:ApiToken"]!
         );
+        var agentKernel = baseKernel.Clone();
 
-        builder.Plugins.AddFromObject(gitPlugin);
-        builder.Plugins.AddFromObject(jiraPlugin);
-        var kernel = builder.Build();
-
+        agentKernel.Plugins.AddFromObject(gitPlugin);
+        agentKernel.Plugins.AddFromObject(jiraPlugin);
+        
         // create specialist agent factories
-        var codeIntelFactory = new CodeIntelAgent(kernel);
-        var jiraFactory = new JiraAgent(kernel);
+        var codeIntelFactory = new CodeIntelAgent(agentKernel);
+        var jiraFactory = new JiraAgent(agentKernel);
 
         // create the agents
         var codeIntelAgent = codeIntelFactory.Create();
         var jiraAgent = jiraFactory.Create();
 
         // Create the orchestrator
-        var orchestrator = new TriageAgent(kernel);
+        var orchestrator = new TriageAgent(agentKernel);
 
         // Create the chat group
         _chat = new AgentGroupChat(codeIntelAgent, jiraAgent)
