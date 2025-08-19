@@ -5,11 +5,9 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.Agents;
-using Microsoft.SemanticKernel.Agents.Chat;
 using Microsoft.SemanticKernel.ChatCompletion;
 using sk_multi_agent_system.Agents;
 using sk_multi_agent_system.Plugins;
-using System.Diagnostics.CodeAnalysis;
 
 namespace sk_multi_agent_system;
 
@@ -57,7 +55,7 @@ public class TriageSystem
         _chat = new AgentGroupChat(codeIntelAgent, jiraAgent)
         {
             // Set the rules for the chat group using the orchestrator's plan
-            ExecutionSettings = orchestrator.CreateExecutionSettings([jiraAgent])
+            ExecutionSettings = orchestrator.CreateExecutionSettings([])
         };
     }
 

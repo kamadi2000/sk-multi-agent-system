@@ -5,10 +5,10 @@ using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Configuration;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.Connectors.MongoDB;
-using Microsoft.SemanticKernel.Embeddings;
 using MongoDB.Driver;
 using sk_multi_agent_system;
 using sk_multi_agent_system.Models;
+using System.Text;
 
 
 internal class Program
@@ -20,7 +20,7 @@ internal class Program
             .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
             .Build();
 
-        //await IndexRepositoryAsync(configuration);
+        await IndexRepositoryAsync(configuration);
 
         Console.WriteLine("--- Multi-Agent Triage System Initializing ---");
 
@@ -78,12 +78,28 @@ internal class Program
 
         // Read the Git repo and save records
         using var repo = new Repository(configuration["Indexer:RepoPath"]!);
-        int count = 0;
         var records = new List<GitCommitRecord>();
+
         foreach (var commit in repo.Commits)
         {
+            var richTextBuilder = new StringBuilder();
 
-            var embedding = await embeddingGenerator.GenerateAsync(commit.Message);
+            richTextBuilder.AppendLine($"Commit Message: {commit.Message}");
+            richTextBuilder.AppendLine($"Author: {commit.Author.Name}");
+            richTextBuilder.AppendLine($"Date: {commit.Author.When.DateTime}");
+
+            if (commit.Parents.Any())
+            {
+                var parent = commit.Parents.First();
+                var patch = repo.Diff.Compare<Patch>(parent.Tree, commit.Tree);
+
+                richTextBuilder.AppendLine("\nChanged Files and Diff:");
+                richTextBuilder.AppendLine(patch.Content);
+            }
+
+            string textToEmbed = richTextBuilder.ToString();
+
+            Embedding<float> embedding = await embeddingGenerator.GenerateAsync(textToEmbed);
 
             records.Add(new GitCommitRecord
             {
@@ -91,9 +107,8 @@ internal class Program
                 Message = commit.Message,
                 Author = commit.Author.Name,
                 Date = commit.Author.When.DateTime,
-                Embedding = embedding.Vector 
+                Embedding = embedding.Vector
             });
-            count++;
         }
 
         var nativeCollection = database.GetCollection<GitCommitRecord>(

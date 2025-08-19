@@ -1,8 +1,6 @@
 using Atlassian.Jira;
 using Microsoft.SemanticKernel;
-using System;
 using System.ComponentModel;
-using System.Threading.Tasks;
 
 namespace sk_multi_agent_system.Plugins;
 
@@ -44,27 +42,49 @@ public class JiraPlugin
         }
     }
 
-    [KernelFunction, Description("Assigns an existing Jira issue to a specific user.")]
-    public async Task<string> AssignJiraTicket(
-        [Description("The key of the issue to assign, e.g., 'PROJ-123'.")] string issueKey,
-        [Description("The username or account ID of the person to assign the issue to.")] string assigneeName
-    )
-    {
-        try
-        {
-            var issue = await _jira.Issues.GetIssueAsync(issueKey);
-            if (issue == null)
-            {
-                return $"Error: Issue with key '{issueKey}' not found.";
-            }
+    //[KernelFunction, Description("Assigns an existing Jira issue to a specific user.")]
+    //public async Task<string> AssignJiraTicket(
+    //    [Description("The key of the issue to assign, e.g., 'PROJ-123'.")] string issueKey,
+    //    [Description("The username or account ID of the person to assign the issue to.")] string assigneeName
+    //)
+    //{
+    //    try
+    //    {
+    //        var issue = await _jira.Issues.GetIssueAsync(issueKey);
+    //        if (issue == null)
+    //        {
+    //            return $"Error: Issue with key '{issueKey}' not found.";
+    //        }
 
-            await issue.AssignAsync(assigneeName);
+    //        var assigneeAccountID = "";
+    //        await issue.AssignAsync(assigneeAccountID);
 
-            return $"Successfully assigned issue {issueKey} to {assigneeName}.";
-        }
-        catch (Exception ex)
-        {
-            return $"Error: Failed to assign issue {issueKey}. Details: {ex.Message}";
-        }
-    }
+    //        return $"Successfully assigned issue {issueKey} to {assigneeName}.";
+    //    }
+    //    catch (Exception ex)
+    //    {
+    //        return $"Error: Failed to assign issue {issueKey}. Details: {ex.Message}";
+    //    }
+    //}
+
+    //private async Task<string?> FindJiraUserAccountIdAsync(string name)
+    //{
+    //    try
+    //    {
+    //        var users = await _jira.Users.SearchUsersAsync(name);
+
+    //        var bestMatch = users.FirstOrDefault(u =>
+    //            u.DisplayName.Equals(name, StringComparison.OrdinalIgnoreCase) ||
+    //            u.Email.Equals(name, StringComparison.OrdinalIgnoreCase)
+    //        );
+
+    //        var foundUser = bestMatch ?? users.FirstOrDefault();
+
+    //        return foundUser?.AccountId;
+    //    }
+    //    catch
+    //    {
+    //        return null;
+    //    }
+    //}
 }

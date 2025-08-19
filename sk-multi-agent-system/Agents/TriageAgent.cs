@@ -68,7 +68,7 @@ public class TriageAgent(Kernel kernel)
         var terminateFunction = KernelFunctionFactory.CreateFromPrompt(
             """
             Determine if the triage process is complete. The process is complete if:
-            1. A Jira ticket has been successfully created.
+            1. A Jira ticket has been successfully created and user has no other requests.
             2. The user says "thank you", "done", or "goodbye".
 
             If the conversation is complete, respond with a single word: yes.

@@ -23,6 +23,6 @@ public class GitCommitRecord
     public DateTime Date { get; set; }
 
     [BsonElement("commit_embedding")]
-    [VectorStoreVector(4, DistanceFunction = DistanceFunction.CosineSimilarity)]
+    [VectorStoreVector(3072, DistanceFunction = DistanceFunction.CosineSimilarity)]
     public ReadOnlyMemory<float>? Embedding { get; set; }
 }
