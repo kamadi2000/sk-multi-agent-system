@@ -30,13 +30,13 @@ public class TriageSystem
 
         baseKernelBuilder.AddOpenAIEmbeddingGenerator(
             configuration["QdrantVectorStore:TextEmbeddingModel"]!,
-            configuration["OpenAI:ApiKey"]!
+            configuration["OpenAI:ApiKey"]!,
             serviceId: "qdrant-vectore-store"
             );
 
         baseKernelBuilder.AddOpenAIEmbeddingGenerator(
             configuration["OpenAI:EmbeddingModel"]!,
-            configuration["OpenAI:ApiKey"]!
+            configuration["OpenAI:ApiKey"]!,
             serviceId: "mongodb-vector-store"
         );
 
@@ -47,7 +47,7 @@ public class TriageSystem
         );
 
         baseKernelBuilder.Services.AddSingleton(_ => qdrantClient);
-        baseKernelBuilder.Services.AddQdrantVectorStore(serviceId: "qdrant-vectore-store");
+        baseKernelBuilder.Services.AddQdrantVectorStore();
 
         var baseKernel = baseKernelBuilder.Build();
         var gitPlugin = new GitPlugin(configuration, baseKernel);
