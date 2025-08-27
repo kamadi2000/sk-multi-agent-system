@@ -6,7 +6,13 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.SemanticKernel;
+using Microsoft.SemanticKernel.ChatCompletion;
+using Microsoft.SemanticKernel.Connectors.MongoDB;
+using MongoDB.Driver;
 using sk_multi_agent_system;
+using sk_multi_agent_system.Models;
+using System.Text;
 using System.Threading.Tasks;
 
 internal class Program
