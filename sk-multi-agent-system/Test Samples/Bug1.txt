@@ -1,0 +1,13 @@
+Bug Report ID: TRIAGE-101
+Severity: Critical
+Description:
+The system crashes when trying to index a new repository path that does not exist.  
+The exception is thrown in `Program.cs` inside `IndexRepositoryAsync`, when `new Repository(configuration["Indexer:RepoPath"]!)` is called.  
+
+Steps to Reproduce:
+1. Update `appsettings.json` with a non-existent repo path.
+2. Run the application.
+3. Observe crash on startup.
+
+Expected:
+The application should validate the path and show a friendly error message, instead of crashing.
