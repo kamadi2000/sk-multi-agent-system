@@ -85,11 +85,7 @@ public class TriageSystem
         _chat = new AgentGroupChat(bugAnalysisAgent, codeIntelAgent, commAgent, jiraAgent)
         {
             // Set the rules for the chat group using the orchestrator's plan
-<<<<<<< HEAD
             ExecutionSettings = orchestrator.CreateExecutionSettings([jiraAgent, commAgent])
-=======
-
->>>>>>> origin/groupchat-orchestration
         };
     }
 
