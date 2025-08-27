@@ -1,0 +1,14 @@
+Bug Report ID: TRIAGE-175
+Severity: Major
+Description:
+Some commits in MongoDB have empty `Description` fields.  
+This seems to occur when `chatService.GetChatMessageContentAsync` in `Program.cs` returns an object but with `Content == null`.  
+Currently, the system skips generating a description in that case, but still stores the record with missing description.  
+
+Steps to Reproduce:
+1. Index a repo with large diffs.
+2. Check MongoDB collection.
+3. Notice some commits have `Description: null`.
+
+Expected:
+If a commit description cannot be generated, it should be retried or at least flagged, not silently stored empty.
