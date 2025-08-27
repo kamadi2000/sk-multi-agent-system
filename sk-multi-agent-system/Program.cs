@@ -4,6 +4,7 @@ using LibGit2Sharp;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Configuration;
 using Microsoft.SemanticKernel;
+using Microsoft.SemanticKernel.ChatCompletion;
 using Microsoft.SemanticKernel.Connectors.MongoDB;
 using MongoDB.Driver;
 using sk_multi_agent_system;
@@ -58,12 +59,18 @@ internal class Program
     {
         Console.WriteLine("--- Starting Git Repository Indexing ---");
 
-        // setup Kernel for embedding generation
-        var kernel = Kernel.CreateBuilder()
-            .AddOpenAIEmbeddingGenerator(
-                configuration["OpenAI:EmbeddingModel"]!,
-                configuration["OpenAI:ApiKey"]!
-            ).Build();
+        // setup Kernel for chat completion and embedding generation
+        var kernelBuilder = Kernel.CreateBuilder()
+        .AddOpenAIChatCompletion(
+            configuration["OpenAI:ModelId"]!,
+            configuration["OpenAI:ApiKey"]!
+        )
+        .AddOpenAIEmbeddingGenerator(
+            configuration["OpenAI:EmbeddingModel"]!,
+            configuration["OpenAI:ApiKey"]!
+        );
+
+        var kernel = kernelBuilder.Build();
 
         // connect to MongoDB and get a Vector Store instance directly
         var mongoClient = new MongoClient(configuration["MongoDB:ConnectionString"]!);
@@ -75,6 +82,7 @@ internal class Program
         );
 
         var embeddingGenerator = kernel.GetRequiredService<IEmbeddingGenerator<string, Embedding<float>>>();
+        var chatService = kernel.GetRequiredService<IChatCompletionService>();
 
         // Read the Git repo and save records
         using var repo = new Repository(configuration["Indexer:RepoPath"]!);
@@ -97,9 +105,32 @@ internal class Program
                 richTextBuilder.AppendLine(patch.Content);
             }
 
-            string textToEmbed = richTextBuilder.ToString();
+            string commitContext = richTextBuilder.ToString();
 
-            Embedding<float> embedding = await embeddingGenerator.GenerateAsync(textToEmbed);
+            var contextPrompt = $@"
+            You are an AI assistant analyzing git commits.
+            Summarize the commit below in a clear, concise description of code changes:
+
+            {commitContext}
+            ";
+
+            var chatResult = await chatService.GetChatMessageContentAsync(
+            new ChatHistory
+            {
+                new ChatMessageContent(AuthorRole.System, "You are a software assistant that explains git commits."),
+                new ChatMessageContent(AuthorRole.User, commitContext)
+            }
+            );
+
+            if (string.IsNullOrWhiteSpace(chatResult?.Content))
+            {
+                Console.WriteLine($"Skipping commit {commit.Sha}, no description generated.");
+                continue;
+            }
+
+            string description = chatResult.Content;
+
+            Embedding<float> embedding = await embeddingGenerator.GenerateAsync(description);
 
             records.Add(new GitCommitRecord
             {
@@ -107,6 +138,7 @@ internal class Program
                 Message = commit.Message,
                 Author = commit.Author.Name,
                 Date = commit.Author.When.DateTime,
+                Description = description,
                 Embedding = embedding.Vector
             });
         }

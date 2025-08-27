@@ -22,6 +22,10 @@ public class GitCommitRecord
     [VectorStoreData(IsIndexed = true)]
     public DateTime Date { get; set; }
 
+    [BsonElement("commit_description")]
+    [VectorStoreData(IsIndexed = true)]
+    public string Description { get; set; } = string.Empty ;
+
     [BsonElement("commit_embedding")]
     [VectorStoreVector(3072, DistanceFunction = DistanceFunction.CosineSimilarity)]
     public ReadOnlyMemory<float>? Embedding { get; set; }
