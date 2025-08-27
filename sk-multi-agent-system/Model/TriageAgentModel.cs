@@ -14,7 +14,7 @@ public class TriageAgentModel
     [VectorStoreData]
     public string Bug_Description { get; set; } = null!;
 
-    [VectorStoreVector(1536, DistanceFunction = DistanceFunction.CosineSimilarity)]
+    [VectorStoreVector(3072, DistanceFunction = DistanceFunction.CosineSimilarity)]
     public ReadOnlyMemory<float>? DescriptionEmbedding { get; set; }
 }
 

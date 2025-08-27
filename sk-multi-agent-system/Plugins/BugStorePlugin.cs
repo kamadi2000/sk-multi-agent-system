@@ -27,7 +27,7 @@ public class BugStorePlugin
         [Description("Bug description to search for.")] string query)
     {
         var vectorStore = _kernel.Services.GetRequiredService<VectorStore>()!;
-        var embeddingGenerator = _kernel.GetRequiredService<IEmbeddingGenerator<string, Embedding<float>>>()!;
+        var embeddingGenerator = _kernel.GetRequiredService<IEmbeddingGenerator<string, Embedding<float>>>("qdrant-vectore-store")!;
         var queryEmbedding = await embeddingGenerator.GenerateVectorAsync(query);
 
         var bugs = vectorStore.GetCollection<Guid, TriageAgentModel>("Bugs");
@@ -73,13 +73,13 @@ public class BugStorePlugin
     [KernelFunction("save_bug")]
     [Description("Save a new bug report into the Qdrant vector database.")]
     public async Task<string> SaveBugAsync(
-        [Description("Bug description to save.")] string description,
-        [Description("Chat Id of telegram user which reports the bug.")] string chatId,
-        [Description("User Id of telegram user which reports the bug.")] string userId
+        [Description("Bug description to save.")] string description
+        //[Description("Chat Id of telegram user which reports the bug.")] string chatId,
+        //[Description("User Id of telegram user which reports the bug.")] string userId
         )
     {
         var vectorStore = _kernel.Services.GetRequiredService<VectorStore>()!;
-        var embeddingGenerator = _kernel.GetRequiredService<IEmbeddingGenerator<string, Embedding<float>>>()!;
+        var embeddingGenerator = _kernel.GetRequiredService<IEmbeddingGenerator<string, Embedding<float>>>("qdrant-vectore-store")!;
         var queryEmbedding = await embeddingGenerator.GenerateVectorAsync(description);
 
         var bugs = vectorStore.GetCollection<Guid, TriageAgentModel>("Bugs");
@@ -103,8 +103,8 @@ public class BugStorePlugin
         var newBug = new TriageAgentModel
         {
             Key = Guid.NewGuid(),
-            UserID = userId.ToString(),
-            ChatID = chatId.ToString(),
+            UserID = "1234",
+            ChatID = "1234",
             Bug_Description = description,
             DescriptionEmbedding = queryEmbedding
         };

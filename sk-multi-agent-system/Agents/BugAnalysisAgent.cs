@@ -20,9 +20,8 @@ public class BugAnalysisAgent
         if a similar bug exists. Pass the user message to this function as a parameter.
         2. If a match is found, inform the user and ask if they want to reuse the existing 
         bug or create a new one.
-        3. If the user wants a new bug, call SaveBugAsync function to save it in the 
-        database, then forward it to CodeIntelAgent. Pass the user message, chat_id and 
-        user_id to this function as parameters.
+        3. If the user wants to save a new bug, call 'save_bug function to save it in the 
+        database, then forward it to CodeIntelAgent. 
         4. If no match is found, directly call 'save_bug' and then forward it.
         5. Politely decline to answer if the query is not related to bug triage.
         """;
