@@ -11,6 +11,7 @@ namespace sk_multi_agent_system.Agents;
 // This class is the "manager" of specialist agents.
 public class TriageAgent(Kernel kernel)
 {
+    private const string BugAnalysisAgentName = BugAnalysisAgent.AgentName;
     private const string CodeIntelName = CodeIntelAgent.AgentName;
     private const string JiraAgentName = JiraAgent.AgentName;
     private const string CommAgentName = CommunicationAgent.AgentName;
@@ -33,22 +34,34 @@ public class TriageAgent(Kernel kernel)
             State ONLY the name of the participant to take the next turn.
 
             # PARTICIPANTS
+            - {{{BugAnalysisAgentName}}}: An expert in analysis and identifying old bugs and saving new bugs.
             - {{{CodeIntelName}}}: An expert at analyzing code, commits, files, and git history.
             - {{{CommAgentName}}}: An expert at communicating with others user and groups.
             - {{{JiraAgentName}}}: An expert at creating and managing Jira tickets.
 
             # RULES
-            1.  Initial Query: If the user asks a new question about code, files, or git history, choose {{{CodeIntelName}}}.
+            1.  Initial Query: 
+            - If the user reports a bug, defect, or unexpected behavior in the code, choose {{{BugAnalysisAgentName}}}.
+            - {{{BugAnalysisAgentName}}} will decide if the bug is present or not and answer queries related to the bug.
+            
+            2. Handoff to CodeIntelAgent: If the user asks a new question about code, files, or git history, choose {{{CodeIntelName}}}.
         
             2.  Context Persistence: If {{{CodeIntelName}}} was the last speaker and the user asks a direct follow-up question about the same topic, choose {{{CodeIntelName}}} again.
 
-            3. Handoff to Communication: If the user requests to send a message to the people mentioned in the message given by {{{CodeIntelName}}}, then it's {{{CommAgentName}}} turn.
-        
-            4.  Handoff to Jira: If {{{CodeIntelName}}} has just provided analysis and the user's response indicates they are now ready to file a bug report e bug, YOU MUST choose {{{JiraAgentName}}}.
-        
-            5.  Jira Task: If the user's initial request is clearly to create a ticket or bug report, choose {{{JiraAgentName}}}.
+            3. Bug Analysis Handoff:  
+            - If the user reports a bug, defect, or unexpected behavior in the code, choose {{{BugAnalysisAgentName}}}.  
+            - If {{{CodeIntelName}}} has already provided analysis of the code and the next step is to validate whether a bug truly exists, choose {{{BugAnalysisAgentName}}}.
 
-            6.  Always select one of the participants listed above.
+            4. Handoff to Communication: 
+            - If the user requests to send a message to the people mentioned in the message given by {{{CodeIntelName}}}, choose {{{CommAgentName}}}.
+            - If the user (or a developer) explicitly confirms they will take ownership of a bug (e.g., "I'll handle it", "I'll do this bug", "assign this to me"), choose {{{CommAgentName}}}.
+            - If the user creates jira task using the {{{JiraAgentName}}}, for furthur communications choose {{{CommAgentName}}}.
+        
+            5.  Handoff to Jira: If {{{CodeIntelName}}} has just provided analysis and the user's response indicates they are now ready to file a bug report e bug, YOU MUST choose {{{JiraAgentName}}}.
+        
+            6.  Jira Task: If the user's initial request is clearly to create a ticket or bug report, choose {{{JiraAgentName}}}.
+
+            7.  Always select one of the participants listed above.
 
             # CONVERSATION HISTORY
             {{$history}}
@@ -71,9 +84,10 @@ public class TriageAgent(Kernel kernel)
         // This prompt decides when the entire conversation should end.
         var terminateFunction = KernelFunctionFactory.CreateFromPrompt(
             """
-            Determine if the triage process is complete. The process is complete if:
-            1. A Jira ticket has been successfully created.
-            2. The user says "thank you", "done", or "goodbye".
+            Determine if the triage process is complete. 
+            The process is complete ONLY if:
+            - A Jira ticket has been successfully created, AND
+            - The user then says "thank you", "done", or "goodbye".
 
             If the conversation is complete, respond with a single word: yes.
 
