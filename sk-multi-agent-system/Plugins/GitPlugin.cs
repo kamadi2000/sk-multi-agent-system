@@ -39,7 +39,7 @@ public class GitPlugin
             );
 
             // Generate an embedding for the user's search query
-            var embeddingGenerator = _kernel.GetRequiredService<IEmbeddingGenerator<string, Embedding<float>>>();
+            var embeddingGenerator = _kernel.GetRequiredService<IEmbeddingGenerator<string, Embedding<float>>>("mongodb-vector-store");
             Embedding<float> searchEmbedding = await embeddingGenerator.GenerateAsync(query);
 
             // perform the search using the vector and options

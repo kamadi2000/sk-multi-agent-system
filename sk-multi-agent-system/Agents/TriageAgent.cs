@@ -43,7 +43,7 @@ public class TriageAgent(Kernel kernel)
             1.  Initial Query: 
             - If the user reports a bug, defect, or unexpected behavior in the code, choose {{{BugAnalysisAgentName}}}.
             - {{{BugAnalysisAgentName}}} will decide if the bug is present or not and answer queries related to the bug.
-            - {{{BugAnalysisAgentName}}} will save the bug if the user ask to do so.
+            - {{{BugAnalysisAgentName}}} will save the bug if the user ask to do so. If more analysing is needed then pass it to the {{{CodeIntelName}}}
             
             2. Handoff to CodeIntelAgent: If the user asks a new question about code, files, or git history, choose {{{CodeIntelName}}}.
         
