@@ -10,14 +10,13 @@ public class TelegramBotService
     private readonly ITelegramBotClient _botClient;
     private readonly TriageSystem _triageSystem;
 
-    public TelegramBotService(IConfiguration configuration)
+    public TelegramBotService(IConfiguration configuration, TriageSystem triageSystem)
     {
         var botToken = configuration["Telegram:BotToken"]
             ?? throw new InvalidOperationException("Missing Telegram:BotToken in configuration.");
 
         _botClient = new TelegramBotClient(botToken);
-
-        _triageSystem = new TriageSystem(configuration, _botClient);
+        _triageSystem = triageSystem;
     }
 
     public void Start()
@@ -49,7 +48,7 @@ public class TelegramBotService
         var chatId = update.Message.Chat.Id;
         var userMessage = update.Message.Text ?? "";
 
-        await foreach (var reply in _triageSystem.RunAsync(userMessage))
+        await foreach (var reply in _triageSystem.RunAsync(chatId.ToString(), userMessage))
         {
             await bot.SendMessage(chatId, reply, cancellationToken: cancellationToken);
         }

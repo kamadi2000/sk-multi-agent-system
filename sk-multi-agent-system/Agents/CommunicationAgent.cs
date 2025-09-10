@@ -31,6 +31,9 @@ public class CommunicationAgent(Kernel _kernel)
     4. When the user asks to send the message to the relevant users, first send the message describing the bug to the person who did the last commit, then the Dev test group informing the
         new bug which has been reported. Use the send_message_to_user function to send the message the last_commited person and Dev test groupcwith these as username.
 
+    5. When a developer informs that they can't do it, inform the Dev test group regarding the unavailability of the developer and ask for other developer's help.
+        You can call the send_message_to_user function with the username as Dev test group for this functionality.
+
     """;
 
     public ChatCompletionAgent Create()
