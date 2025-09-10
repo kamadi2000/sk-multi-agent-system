@@ -364,3 +364,5 @@ FodyWeavers.xsd
 
 # User secrets and configuration
 appsettings.json
+
+UserDatabase.cs

@@ -47,7 +47,7 @@ public class TriageAgent(Kernel kernel)
             
             2. Handoff to CodeIntelAgent: If the user asks a new question about code, files, or git history, choose {{{CodeIntelName}}}.
         
-            2.  Context Persistence: If {{{CodeIntelName}}} was the last speaker and the user asks a direct follow-up question about the same topic, choose {{{CodeIntelName}}} again.
+            2. Context Persistence: If {{{CodeIntelName}}} was the last speaker and the user asks a direct follow-up question about the same topic, choose {{{CodeIntelName}}} again.
 
             3. Bug Analysis Handoff:  
             - If the user reports a bug, defect, or unexpected behavior in the code, choose {{{BugAnalysisAgentName}}}.  
@@ -58,11 +58,12 @@ public class TriageAgent(Kernel kernel)
             - If the user (or a developer) explicitly confirms they will take ownership of a bug (e.g., "I'll handle it", "I'll do this bug", "assign this to me"), choose {{{CommAgentName}}}.
             - If the user creates jira task using the {{{JiraAgentName}}}, for furthur communications choose {{{CommAgentName}}}.
         
-            5.  Handoff to Jira: If {{{CodeIntelName}}} has just provided analysis and the user's response indicates they are now ready to file a bug report e bug, YOU MUST choose {{{JiraAgentName}}}.
+            5. Handoff to Jira: If {{{CodeIntelName}}} has just provided analysis and the user's response indicates they are now ready to file a jira ticket or confirm that user
+               takes this case for handling, YOU MUST choose {{{JiraAgentName}}}.
         
-            6.  Jira Task: If the user's initial request is clearly to create a ticket or bug report, choose {{{JiraAgentName}}}.
+            6. Jira Task: If the user's initial request is clearly to create a ticket or bug report, choose {{{JiraAgentName}}}.
 
-            7.  Always select one of the participants listed above.
+            7. Always select one of the participants listed above.
 
             # CONVERSATION HISTORY
             {{$history}}

@@ -2,13 +2,13 @@ Bug Report ID: TRIAGE-134
 Severity: Medium
 Description:
 When using the `SemanticSearchCommits` function in `GitPlugin.cs`, the results are too vague and sometimes irrelevant.  
-Even when searching for "MongoDB connection string", unrelated commits are shown.  
+Even when searching for "exact commit message", unrelated commits are shown.  
 It seems like the relevance threshold (`result.Score < 0.5`) is too low, allowing weak matches.  
 
 Steps to Reproduce:
-1. Run a semantic search query "MongoDB connection string".
+1. Run a semantic search query "Initial Commit".
 2. Review the top 5 results.
-3. Many commits unrelated to MongoDB are included.
+3. Many commits unrelated to initial commit are included.
 
 Expected:
 Semantic search should prioritize highly relevant commits, possibly with a higher relevance cutoff.
