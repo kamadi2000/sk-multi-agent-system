@@ -55,7 +55,7 @@ internal class Program
                 services.AddSingleton<TelegramBotService>();
                 services.AddHostedService<TelegramBotWorker>();
             });
-    
+
     private static async Task IndexRepositoryAsync(IConfiguration configuration)
     {
         Console.WriteLine("--- Starting Git Repository Indexing ---");
@@ -82,6 +82,7 @@ internal class Program
             configuration["MongoDB:CollectionName"]!
         );
 
+        //Process.ToMermaid(2)
         var embeddingGenerator = kernel.GetRequiredService<IEmbeddingGenerator<string, Embedding<float>>>();
         var chatService = kernel.GetRequiredService<IChatCompletionService>();
 
@@ -163,3 +164,65 @@ internal class Program
         Console.WriteLine($"---Indexing Complete: {records.Count} commits saved to MongoDB ---");
     }
 }
+
+//#pragma warning disable SKEXP0080
+//#pragma warning disable SKEXP0010
+
+//using Microsoft.Extensions.Configuration;
+//using Microsoft.SemanticKernel;
+//using sk_multi_agent_system.Plugins;
+//using sk_multi_agent_system.Processes;
+//using sk_multi_agent_system.Steps;
+
+//class Program
+//{
+//    static async Task Main(string[] args)
+//    {
+//        var configuration = new ConfigurationBuilder()
+//            .AddJsonFile("appSettings.json", optional: true)
+//            .AddEnvironmentVariables()
+//            .Build();
+
+//        var kernelBuilder = Kernel.CreateBuilder();
+
+//        kernelBuilder.AddOpenAIChatCompletion(
+//            configuration["OpenAI:ModelId"],
+//            configuration["OpenAI:ApiKey"]
+//        );
+
+//        kernelBuilder.AddOpenAIEmbeddingGenerator(
+//            configuration["OpenAI:EmbeddingModel"],
+//            configuration["OpenAI:ApiKey"],
+//            serviceId: "mongodb-vector-store"
+//        );
+
+//        kernelBuilder.AddOpenAIEmbeddingGenerator(
+//            configuration["OpenAI:EmbeddingModel"],
+//            configuration["OpenAI:ApiKey"],
+//            serviceId: "qdrant-vector-store"
+//        );
+
+//        var kernel = kernelBuilder.Build();
+
+//        // Build the process
+//        var process = BugReportProcess.Build();
+
+//        // Start the process with a test bug report
+//        var bugReport = "App crashes when clicking Save after editing a profile picture.";
+//        //var result = await process.StartAsync(new { Start = bugReport });
+//        var result = await process.StartAsync(
+//            kernel,
+//            new KernelProcessEvent { Id = "Start", Data = bugReport }
+//        );
+
+//        if (result != null)
+//        {
+//            Console.WriteLine("Process complte", result);
+//        }
+//        else
+//        {
+//            Console.WriteLine("Failed with no output");
+//        }
+//        //Console.WriteLine("Process completed:");
+//    }
+//}
