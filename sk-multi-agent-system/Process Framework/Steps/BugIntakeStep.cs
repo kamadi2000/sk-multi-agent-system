@@ -18,10 +18,9 @@ namespace sk_multi_agent_system.Steps;
 
 public class BugIntakeStep : KernelProcessStep
 {
-    public BugIntakeStep() { }
 
     [KernelFunction]
-    public async Task HandleBugReportAsync(Kernel kernel, string bugReport, KernelProcessStepContext context)
+    public async Task<string> HandleBugReportAsync(Kernel kernel, string bugReport, KernelProcessStepContext context)
     {
         Console.WriteLine($"[{nameof(BugIntakeStep)}]: Received bug report. Checking for duplicates...");
 
@@ -33,29 +32,47 @@ public class BugIntakeStep : KernelProcessStep
             var outputMsg = $"This bug report appears to be a duplicate of an existing issue: {string.Join(", ", similarBugs)}";
 
             await context.EmitEventAsync("DuplicateFound", outputMsg);
+
+            await context.EmitEventAsync("HumanVerificationNeeded", outputMsg );
+
+            return outputMsg;
         }
         else
         {
             Console.WriteLine($"[{nameof(BugIntakeStep)}]: New bug report. Continuing process.");
 
-
+            await SaveBugAsync(kernel, bugReport);
             await context.EmitEventAsync("BugReceived", bugReport);
+            return bugReport;
         }
     }
 
-    
+
 
     private async Task<IEnumerable<string>> FindSimilarBugsAsync(Kernel kernel, string bugReport)
     {
         var vectorStore = kernel.Services.GetRequiredService<VectorStore>()!;
-        var embeddingGenerator = kernel.Services.GetRequiredService<IEmbeddingGenerator<string, Embedding<float>>>("qdrant-vectore-store")!;
+        var embeddingGenerator = kernel.GetRequiredService<IEmbeddingGenerator<string, Embedding<float>>>("qdrant-vector-store");
+        var queryEmbedding = await embeddingGenerator.GenerateVectorAsync(bugReport);
 
         var bugs = vectorStore.GetCollection<Guid, TriageAgentModel>("Bugs");
         var collections = vectorStore.ListCollectionNamesAsync();
 
         var collectionList = new HashSet<string>();
 
-        var results = bugs.SearchAsync(bugReport, 5, new VectorSearchOptions<TriageAgentModel>
+        await foreach (var collection in collections)
+        {
+            collectionList.Add(collection);
+        }
+
+        var collectionExists = collectionList.Contains("Bugs");
+
+        if (!collectionExists)
+        {
+            return null;
+        }
+
+        var results = bugs.SearchAsync(queryEmbedding, 3, new VectorSearchOptions<TriageAgentModel>
         {
             VectorProperty = bug => bug.DescriptionEmbedding,
             IncludeVectors = true
@@ -64,22 +81,62 @@ public class BugIntakeStep : KernelProcessStep
         var searchedResult = new HashSet<string>();
         await foreach (var result in results)
         {
-            if (result.Score >= 0.7)
+            if (result.Score >= 0.85)
             {
                 searchedResult.Add($"{result.Record.Bug_Description}");
             }
         }
 
-        // Search for similar bugs with a score threshold
-        var results = await vectorStore.GetNearestMatchesAsync(
-            collectionName: "Bugs",
-            embedding: await embeddingGenerator.GenerateEmbeddingAsync(bugReport),
-            limit: 5,
-            minRelevanceScore: 0.7
-        );
-
-        return results.Select(r => r.Metadata.Text);
+        if (searchedResult.Count > 0)
+        {
+            return searchedResult;
+        }
+        return new HashSet<string>();
     }
 
+    private async Task<string> SaveBugAsync(Kernel kernel, string bugReport
+        )
+    {
+        var vectorStore = kernel.Services.GetRequiredService<VectorStore>()!;
+        var embeddingGenerator = kernel.GetRequiredService<IEmbeddingGenerator<string, Embedding<float>>>("qdrant-vector-store");
+        var queryEmbedding = await embeddingGenerator.GenerateVectorAsync(bugReport);
 
+        var bugs = vectorStore.GetCollection<Guid, TriageAgentModel>("Bugs");
+
+        var collections = vectorStore.ListCollectionNamesAsync();
+
+        var collectionList = new HashSet<string>();
+
+        await foreach (var collection in collections)
+        {
+            collectionList.Add(collection);
+        }
+
+        var collectionExists = collectionList.Contains("Bugs");
+
+        if (!collectionExists)
+        {
+            return null;
+        }
+
+        var newBug = new TriageAgentModel
+        {
+            Key = Guid.NewGuid(),
+            UserID = "1234",
+            ChatID = "1234",
+            Bug_Description = bugReport,
+            DescriptionEmbedding = queryEmbedding
+        };
+
+        try
+        {
+            await bugs.UpsertAsync(newBug);
+        }
+        catch (Exception ex)
+        {
+            return $"Failed to save bug: {ex.Message}";
+        }
+
+        return "Bug saved successfully.";
+    }
 }

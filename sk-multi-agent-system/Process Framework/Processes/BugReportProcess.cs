@@ -19,14 +19,16 @@ public static class BugReportProcess
         var intakeStep = builder.AddStepFromType<BugIntakeStep>();
         var analysisStep = builder.AddStepFromType<CodeAnalysisStep>();
         var jiraStep = builder.AddStepFromType<JiraCreationStep>();
+        var terminationStep = builder.AddStepFromType<TerminationStep>();
+        var humanVerifyingStep = builder.AddStepFromType<HumanVerifyingStep>();
 
         // Wire events
         builder.OnInputEvent("Start").SendEventTo(new(intakeStep));
         intakeStep.OnEvent("BugReceived").SendEventTo(new(analysisStep));
+        intakeStep.OnEvent("DuplicateFound").SendEventTo(new(terminationStep));
+        intakeStep.OnEvent("HumanVerificationNeeded").SendEventTo(new(humanVerifyingStep));
         analysisStep.OnEvent("BugAnalyzed").SendEventTo(new(jiraStep));
         
-        
-
         return builder.Build();
     }
 }

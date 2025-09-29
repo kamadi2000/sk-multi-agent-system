@@ -1,228 +1,69 @@
-﻿#pragma warning disable SKEXP0001, SKEXP0010, SKEXP0020, SKEXP0050
+﻿#pragma warning disable SKEXP0080
+#pragma warning disable SKEXP0010
 
-using LibGit2Sharp;
-using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 using Microsoft.SemanticKernel;
-using Microsoft.SemanticKernel.ChatCompletion;
-using Microsoft.SemanticKernel.Connectors.MongoDB;
-using MongoDB.Driver;
-using sk_multi_agent_system;
-using sk_multi_agent_system.Models;
-using System.Text;
-using System.Threading.Tasks;
+using sk_multi_agent_system.Processes;
+using Qdrant.Client;
+using Microsoft.Extensions.DependencyInjection;
 
-internal class Program
+class Program
 {
-    public static async Task Main(string[] args)
+    static async Task Main(string[] args)
     {
-        var host = CreateHostBuilder(args).Build();
+        var configuration = new ConfigurationBuilder()
+            .AddJsonFile("appSettings.json", optional: true)
+            .AddEnvironmentVariables()
+            .Build();
 
-        try
-        {
-            await host.RunAsync();
-        }
-        catch (Exception ex)
-        {
-            // This will catch *startup* exceptions
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine($"[FATAL] Application failed to start: {ex}");
-            Console.ResetColor();
-            throw; // rethrow so the host still knows it crashed
-        }
-    }
+        var kernelBuilder = Kernel.CreateBuilder();
 
-    static IHostBuilder CreateHostBuilder(string[] args) =>
-        Host.CreateDefaultBuilder(args)
-            .ConfigureAppConfiguration((hostingContext, config) =>
-            {
-                var env = hostingContext.HostingEnvironment;
-
-                config.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
-            })
-            .ConfigureServices((hostContext, services) =>
-            {
-                services.AddLogging(logging =>
-                {
-                    logging.ClearProviders();
-                    logging.AddConsole();
-                });
-
-                // Register your services
-                services.AddSingleton<TelegramBotService>();
-                services.AddHostedService<TelegramBotWorker>();
-            });
-
-    private static async Task IndexRepositoryAsync(IConfiguration configuration)
-    {
-        Console.WriteLine("--- Starting Git Repository Indexing ---");
-
-        // setup Kernel for chat completion and embedding generation
-        var kernelBuilder = Kernel.CreateBuilder()
-        .AddOpenAIChatCompletion(
-            configuration["OpenAI:ModelId"]!,
-            configuration["OpenAI:ApiKey"]!
-        )
-        .AddOpenAIEmbeddingGenerator(
-            configuration["OpenAI:EmbeddingModel"]!,
-            configuration["OpenAI:ApiKey"]!
+        kernelBuilder.AddOpenAIChatCompletion(
+            configuration["OpenAI:ModelId"],
+            configuration["OpenAI:ApiKey"]
         );
+
+        kernelBuilder.AddOpenAIEmbeddingGenerator(
+            configuration["OpenAI:EmbeddingModel"],
+            configuration["OpenAI:ApiKey"],
+            serviceId: "mongodb-vector-store"
+        );
+
+        kernelBuilder.AddOpenAIEmbeddingGenerator(
+            configuration["QdrantVectorStore:TextEmbeddingModel"],
+            configuration["OpenAI:ApiKey"],
+            serviceId: "qdrant-vector-store"
+        );
+        
+        var qdrantClient = new QdrantClient(
+          host: configuration["QdrantVectorStore:Host"]!,
+          https: true,
+          apiKey: configuration["QdrantVectorStore:ApiKey"]!
+        );
+
+        kernelBuilder.Services.AddSingleton(_ => qdrantClient);
+        kernelBuilder.Services.AddQdrantVectorStore();
 
         var kernel = kernelBuilder.Build();
 
-        // connect to MongoDB and get a Vector Store instance directly
-        var mongoClient = new MongoClient(configuration["MongoDB:ConnectionString"]!);
-        var database = mongoClient.GetDatabase(configuration["MongoDB:DatabaseName"]!);
-        var vectorStore = new MongoVectorStore(database);
+        // Build the process
+        var process = BugReportProcess.Build();
 
-        var collection = vectorStore.GetCollection<string, GitCommitRecord>(
-            configuration["MongoDB:CollectionName"]!
+        // Start the process with a test bug report
+        var bugReport = "When entering app credentials it does not appearing on the screen";
+        //var result = await process.StartAsync(new { Start = bugReport });
+        var result = await process.StartAsync(
+            kernel,
+            new KernelProcessEvent { Id = "Start", Data = bugReport }
         );
 
-        //Process.ToMermaid(2)
-        var embeddingGenerator = kernel.GetRequiredService<IEmbeddingGenerator<string, Embedding<float>>>();
-        var chatService = kernel.GetRequiredService<IChatCompletionService>();
-
-        // Read the Git repo and save records
-        using var repo = new Repository(configuration["Indexer:RepoPath"]!);
-        var records = new List<GitCommitRecord>();
-
-        foreach (var commit in repo.Commits)
+        if (result != null)
         {
-            var richTextBuilder = new StringBuilder();
-
-            richTextBuilder.AppendLine($"Commit Message: {commit.Message}");
-            richTextBuilder.AppendLine($"Author: {commit.Author.Name}");
-            richTextBuilder.AppendLine($"Date: {commit.Author.When.DateTime}");
-
-            if (commit.Parents.Any())
-            {
-                var parent = commit.Parents.First();
-                var patch = repo.Diff.Compare<Patch>(parent.Tree, commit.Tree);
-
-                richTextBuilder.AppendLine("\nChanged Files and Diff:");
-                richTextBuilder.AppendLine(patch.Content);
-            }
-
-            string commitContext = richTextBuilder.ToString();
-
-            var contextPrompt = $@"
-            You are an AI assistant analyzing git commits.
-            Summarize the commit below in a clear, concise description of code changes:
-
-            {commitContext}
-            ";
-
-            var chatResult = await chatService.GetChatMessageContentAsync(
-            new ChatHistory
-            {
-                new ChatMessageContent(AuthorRole.System, "You are a software assistant that explains git commits."),
-                new ChatMessageContent(AuthorRole.User, commitContext)
-            }
-            );
-
-            if (string.IsNullOrWhiteSpace(chatResult?.Content))
-            {
-                Console.WriteLine($"Skipping commit {commit.Sha}, no description generated.");
-                continue;
-            }
-
-            string description = chatResult.Content;
-
-            Embedding<float> embedding = await embeddingGenerator.GenerateAsync(description);
-
-            records.Add(new GitCommitRecord
-            {
-                CommitSha = commit.Sha,
-                Message = commit.Message,
-                Author = commit.Author.Name,
-                Date = commit.Author.When.DateTime,
-                Description = description,
-                Embedding = embedding.Vector
-            });
+            Console.WriteLine("Process Executed", result);
         }
-
-        var nativeCollection = database.GetCollection<GitCommitRecord>(
-            configuration["MongoDB:CollectionName"]!
-        );
-
-        var bulkOps = new List<WriteModel<GitCommitRecord>>();
-        foreach (var record in records)
+        else
         {
-            var filter = Builders<GitCommitRecord>.Filter.Eq(r => r.CommitSha, record.CommitSha);
-            bulkOps.Add(new ReplaceOneModel<GitCommitRecord>(filter, record) { IsUpsert = true });
+            Console.WriteLine("Failed with no output");
         }
-
-        if (bulkOps.Any())
-        {
-            await nativeCollection.BulkWriteAsync(bulkOps);
-        }
-
-        Console.WriteLine($"---Indexing Complete: {records.Count} commits saved to MongoDB ---");
     }
 }
-
-//#pragma warning disable SKEXP0080
-//#pragma warning disable SKEXP0010
-
-//using Microsoft.Extensions.Configuration;
-//using Microsoft.SemanticKernel;
-//using sk_multi_agent_system.Plugins;
-//using sk_multi_agent_system.Processes;
-//using sk_multi_agent_system.Steps;
-
-//class Program
-//{
-//    static async Task Main(string[] args)
-//    {
-//        var configuration = new ConfigurationBuilder()
-//            .AddJsonFile("appSettings.json", optional: true)
-//            .AddEnvironmentVariables()
-//            .Build();
-
-//        var kernelBuilder = Kernel.CreateBuilder();
-
-//        kernelBuilder.AddOpenAIChatCompletion(
-//            configuration["OpenAI:ModelId"],
-//            configuration["OpenAI:ApiKey"]
-//        );
-
-//        kernelBuilder.AddOpenAIEmbeddingGenerator(
-//            configuration["OpenAI:EmbeddingModel"],
-//            configuration["OpenAI:ApiKey"],
-//            serviceId: "mongodb-vector-store"
-//        );
-
-//        kernelBuilder.AddOpenAIEmbeddingGenerator(
-//            configuration["OpenAI:EmbeddingModel"],
-//            configuration["OpenAI:ApiKey"],
-//            serviceId: "qdrant-vector-store"
-//        );
-
-//        var kernel = kernelBuilder.Build();
-
-//        // Build the process
-//        var process = BugReportProcess.Build();
-
-//        // Start the process with a test bug report
-//        var bugReport = "App crashes when clicking Save after editing a profile picture.";
-//        //var result = await process.StartAsync(new { Start = bugReport });
-//        var result = await process.StartAsync(
-//            kernel,
-//            new KernelProcessEvent { Id = "Start", Data = bugReport }
-//        );
-
-//        if (result != null)
-//        {
-//            Console.WriteLine("Process complte", result);
-//        }
-//        else
-//        {
-//            Console.WriteLine("Failed with no output");
-//        }
-//        //Console.WriteLine("Process completed:");
-//    }
-//}
