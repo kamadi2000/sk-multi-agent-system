@@ -51,9 +51,9 @@ public class JiraCreationStep : KernelProcessStep
     {
         try
         {
-            var jiraUrl = "";
-            var jiraUsername = "";
-            var jiraApiToken = "";
+            var jiraUrl = "your_jira_url";
+            var jiraUsername = "your_email";
+            var jiraApiToken = "your_token";
             var _jira = Jira.CreateRestClient(jiraUrl, jiraUsername, jiraApiToken);
             var newIssue = _jira.CreateIssue(projectKey);
             newIssue.Type = issueType;
